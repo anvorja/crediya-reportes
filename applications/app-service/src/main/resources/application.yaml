@@ -1,0 +1,51 @@
+server:
+  port: "${SERVER_PORT:8080}"
+  shutdown: "graceful"
+spring:
+  application:
+    name: "MicroservicioReportes"
+  devtools:
+    add-properties: false
+  lifecycle:
+    timeout-per-shutdown-phase: "20s"
+adapter:
+  dynamodb:
+    region: "${AWS_REGION:us-east-1}"
+    # Solo para LocalStack; en AWS se deja vacio (las credenciales vienen del rol de la tarea o de variables de entorno)
+    endpoint: "${AWS_ENDPOINT_URL:}"
+    table-name: "${DYNAMODB_TABLE:crediya-reportes}"
+    # Cuanto se recuerda una solicitud ya contada para ignorar avisos repetidos (SQS entrega "al menos una vez")
+    ttl-dias: "${DEDUP_TTL_DIAS:30}"
+  sqs:
+    region: "${AWS_REGION:us-east-1}"
+    endpoint: "${AWS_ENDPOINT_URL:}"
+security:
+  jwt:
+    jwk-set-uri: "${AUTH_JWKS_URI:http://localhost:8081/.well-known/jwks.json}"
+    issuer: "${JWT_ISSUER:crediya-auth}"
+    audience: "${JWT_AUDIENCE:crediya}"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,prometheus"
+  endpoint:
+    health:
+      probes:
+        enabled: true
+springdoc:
+  swagger-ui:
+    path: "/swagger-ui.html"
+  api-docs:
+    path: "/v3/api-docs"
+cors:
+  allowed-origins: "http://localhost:4200,http://localhost:8080"
+entrypoint:
+  sqs:
+    enabled: "${SQS_LISTENER_ENABLED:true}"
+    queueUrl: "${SQS_APROBADAS_URL:http://localhost:4566/000000000000/crediya-solicitud-aprobada}"
+    waitTimeSeconds: 20
+    maxNumberOfMessages: 10
+    # Mayor que lo que tarda procesar un mensaje; si se vence, el mensaje vuelve a la cola
+    visibilityTimeoutSeconds: 60
+    numberOfThreads: 1
