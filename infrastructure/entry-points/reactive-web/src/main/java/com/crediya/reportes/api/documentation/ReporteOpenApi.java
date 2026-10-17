@@ -28,20 +28,32 @@ public final class ReporteOpenApi {
     }
 
     public static Builder solicitudesAprobadas(Builder builder) {
-        return builder
+        return protegida(builder, "El rol no es ADMIN")
                 .operationId("reporteSolicitudesAprobadas")
                 .summary("Reporte de solicitudes aprobadas")
                 .description("Cantidad de solicitudes de prestamo aprobadas y monto total aprobado. El acumulado se actualiza "
                         + "con cada aprobacion que publica el servicio de solicitudes. Solo un ADMIN puede consultarlo.")
                 .tag(TAG)
-                .security(securityRequirementBuilder().name(OpenApiConfig.ESQUEMA_BEARER))
                 .response(responseBuilder().responseCode(OK).description("Acumulado actual (en ceros si aun no hay aprobaciones)")
                         .content(contentBuilder().mediaType(JSON).schema(schemaBuilder().implementation(ReporteResponse.class))))
-                .response(responseBuilder().responseCode(UNAUTHORIZED).description("Falta el token o no es valido")
-                        .content(contentBuilder().mediaType(JSON).schema(schemaBuilder().implementation(ErrorResponse.class))))
-                .response(responseBuilder().responseCode(FORBIDDEN).description("El rol no es ADMIN")
-                        .content(contentBuilder().mediaType(JSON).schema(schemaBuilder().implementation(ErrorResponse.class))))
-                .response(responseBuilder().responseCode(SERVER_ERROR).description("Error interno")
-                        .content(contentBuilder().mediaType(JSON).schema(schemaBuilder().implementation(ErrorResponse.class))));
+                .response(error(SERVER_ERROR, "Error interno"));
+    }
+
+    /**
+     * Esquema Bearer mas los 401 y 403 que puede devolver cualquier endpoint protegido.
+     */
+    private static Builder protegida(Builder builder, String descripcionForbidden) {
+        return builder
+                .security(securityRequirementBuilder().name(OpenApiConfig.ESQUEMA_BEARER))
+                .response(error(UNAUTHORIZED, "Falta el token o no es valido"))
+                .response(error(FORBIDDEN, descripcionForbidden));
+    }
+
+    /**
+     * Un unico lugar arma las respuestas de error, siempre con el cuerpo real {@link ErrorResponse}.
+     */
+    private static org.springdoc.core.fn.builders.apiresponse.Builder error(String codigo, String descripcion) {
+        return responseBuilder().responseCode(codigo).description(descripcion)
+                .content(contentBuilder().mediaType(JSON).schema(schemaBuilder().implementation(ErrorResponse.class)));
     }
 }
